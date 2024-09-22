@@ -804,16 +804,18 @@ namespace Microsoft.Maui.Controls
 			if (checkAccess && property.IsReadOnly)
 				throw new InvalidOperationException($"The BindableProperty \"{property.PropertyName}\" is readonly.");
 
-			BindablePropertyContext bpcontext = GetContext(property);
-			if (bpcontext == null)
+			if (property.CoerceValue is null)
 				return;
 
-			object currentValue = bpcontext.Values.GetSpecificityAndValue().Value;
+			BindablePropertyContext bpcontext = GetOrCreateContext(property);
 
-			if (property.ValidateValue != null && !property.ValidateValue(this, currentValue))
-				throw new ArgumentException($"Value is an invalid value for {property.PropertyName}", nameof(currentValue));
+			KeyValuePair<SetterSpecificity, object> kvp = bpcontext.Values.GetSpecificityAndValue();
+			object currentValue = kvp.Value;
 
-			property.CoerceValue?.Invoke(this, currentValue);
+			object coercedValue = property.CoerceValue.Invoke(this, currentValue);
+
+			SetterSpecificity setterSpecificity = kvp.Key;
+			SetValueCore(property, coercedValue, SetValueFlags.None, SetValuePrivateFlags.None, setterSpecificity);
 		}
 
 		[Flags]
